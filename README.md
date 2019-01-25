@@ -1,6 +1,8 @@
 kote
 ====
 
+<img height="200px" src="https://raw.githubusercontent.com/l-n-s/kote/master/images/kote.png">
+
 Invisible Messaging
 
 What is it?
@@ -8,7 +10,7 @@ What is it?
 
 - Dead simple text-based messenger
 - 100% decentralized and distributed
-- Works on top of Invisible Internet, so all communications are encrypted and anonymous
+- Works on top of [Invisible Internet](https://en.wikipedia.org/wiki/I2P), so all communications are encrypted and anonymous
 
 Features
 --------
@@ -23,7 +25,7 @@ Requirements
 ------------
 
 - Python version >= 3.5
-- I2P router with SAM API enabled (i2pd or [Java I2P](https://geti2p.net/_static/images/enable-sam.jpeg))
+- I2P router with SAM API enabled ([i2pd](https://i2pd.website) or [Java I2P](https://geti2p.net/_static/images/enable-sam.jpeg))
 
 Installation
 ------------
@@ -50,5 +52,5 @@ Configuring
 kote can be configured by setting the following environment variables:
 
 - KOTE\_DATADIR - a directory, where kote stores it's files. 
-  By default it's `$HOME/.config/kote` in Linux and `%APPDATA%\kote` in Windows.
+  By default, it's `$HOME/.config/kote` in Linux and `%APPDATA%\kote` in Windows.
 - KOTE\_IRC\_ADDRESS - HOST:PORT for the local IRC server, `127.0.0.1:17772` by default. 
