@@ -1,0 +1,2 @@
+#!/bin/bash
+KOTE_DATADIR=. python3 -m kote.irc
