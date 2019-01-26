@@ -191,18 +191,17 @@ class KoteCore:
                                 logging.warning(
                                     "Invalid response from {}: {}".format(
                                                 msg.destination, e))
-                                break
                             else:
                                 delivered = True
                                 await self._dest_online(msg.destination)
                                 if resp.code == Message.OK:
-                                    break
+                                    logging.debug(str(msg) + " delivered")
                                 elif resp.code == Message.UNAUTHORIZED:
                                     logging.debug(str(msg) + " unauthorized")
                                     resp.name = self.addressbook.get_name(
                                             resp.destination)
                                     await self.on_unauthorized(resp)
-                                    break
+                            break
                         else:
                             logging.debug(str(id(msg)) + " retrying")
                             await asyncio.sleep(DEFAULT_TIMEOUT / 2)
