@@ -128,7 +128,7 @@ class KoteCore:
                                 sam_address=self.sam_address, loop=self.loop)
                 except (i2plib.DuplicatedDest):
                     logging.error("SAM destination already exists")
-                except ConnectionRefusedError:
+                except (ConnectionRefusedError, ConnectionAbortedError):
                     logging.error("SAM API is unavailable")
                 else:
                     self.online.set()
@@ -229,7 +229,7 @@ class KoteCore:
         except (i2plib.CantReachPeer, i2plib.InvalidKey, i2plib.Timeout, \
                 i2plib.KeyNotFound, i2plib.PeerNotFound, i2plib.I2PError):
             logging.debug("Can't connect to {}".format(request.destination))
-        except ConnectionRefusedError:
+        except (ConnectionRefusedError, ConnectionAbortedError):
             logging.warning("_send_message fails: can't connect to SAM")
         else:
             writer.write(bytes(request))
@@ -249,7 +249,7 @@ class KoteCore:
                             sam_address=self.sam_address, loop=self.loop)
                 except i2plib.I2PError:
                     logging.warning("Receiver fails: generic I2P error")
-                except ConnectionRefusedError:
+                except (ConnectionRefusedError, ConnectionAbortedError):
                     logging.warning("Receiver fails: can't connect to SAM")
                     await asyncio.sleep(SESSION_RESTART_TIMEOUT)
                 else:
