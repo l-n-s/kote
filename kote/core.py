@@ -7,6 +7,7 @@ from contextlib import suppress
 from collections import deque
 import random
 import time
+import uuid
 
 import i2plib
 import i2plib.utils
@@ -33,6 +34,9 @@ SEND_RETRIES = 11
 DEFAULT_TIMEOUT = 60
 SESSION_RESTART_TIMEOUT = 30
 PING_INTERVAL = 300
+
+def gen_session_name(prefix="kote"):
+    return "{}-{}".format(prefix, str(uuid.uuid4())[:6])
 
 class MessageSender:
     def __init__(self, loop, task):
@@ -63,7 +67,7 @@ class MessageSender:
         await self.task
 
 class KoteCore:
-    def __init__(self, datadir, sam_address):
+    def __init__(self, datadir, sam_address, session_name=None):
         self.datadir = datadir
         self.sam_address = sam_address
         self.loop = asyncio.get_event_loop()
@@ -75,7 +79,7 @@ class KoteCore:
         self.addressbook = Addressbook()
         self.uuid_log = deque(maxlen=50)
         self.ignore_unauthorized = False
-        self.session_name = i2plib.utils.generate_session_id()
+        self.session_name = session_name or gen_session_name()
         self.started_at = time.time()
         self.dest_cache = {}
 
@@ -90,7 +94,7 @@ class KoteCore:
         try:
             self.addressbook[name] = address
         except ValueError as e:
-            logging.error("Addressbook error: " + e)
+            logging.error("Addressbook error: " + str(e))
             return False
         else:
             await save_contacts(self.loop, dict(self.addressbook), self.datadir)
@@ -104,7 +108,7 @@ class KoteCore:
         try:
             addr = self.addressbook[name]
         except KeyError as e:
-            logging.error("Addressbook error: no such name " + e)
+            logging.error("Addressbook error: no such name " + str(e))
             return False
         else:
             await self.senders[addr].stop()

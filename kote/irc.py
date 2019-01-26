@@ -303,6 +303,8 @@ class Client:
 
 
     async def remove_contact(self, name):
+        if name not in self.kote.addressbook.keys(): 
+            return
         prefix = self.kote.contact_prefix(name)
         removed = await self.kote.remove_contact(name)
         if removed:
