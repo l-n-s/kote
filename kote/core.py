@@ -143,16 +143,20 @@ class KoteCore:
                 await asyncio.sleep(SESSION_RESTART_TIMEOUT)
 
     async def pinger(self):
-        """Send pings to contacts"""
-        # TODO: what if we are dead to one peer and that peer is dead to us?
+        """Send pings to all contacts if there are no online peers, or if 
+        kote is running less than a 1/2 hour. Otherwise, ping online peers each 
+        PING_INTERVAL and all peers each PING_INTERVAL * 6"""
         with suppress(asyncio.CancelledError):
+            x = 0
             while True:
                 await self.online.wait()
-                if not self.addressbook.online_peers() \
-                        or (time.time() - self.started_at) < 1800.0:
+                if (time.time() - self.started_at) < 1800.0 \
+                      or not self.addressbook.online_peers():
                     peers = self.addressbook.values()
+                elif x == 6:
+                    peers, x = self.addressbook.values(), 0
                 else:
-                    peers = self.addressbook.online_peers()
+                    peers, x = self.addressbook.online_peers(), x + 1
                         
                 for d in peers:
                     self.create_task(self._send_ping(d))
