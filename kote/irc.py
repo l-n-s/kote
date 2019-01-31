@@ -2,6 +2,7 @@ import asyncio
 import logging
 import time
 import os
+import sys
 from contextlib import suppress
 import re
 from collections import deque
@@ -474,6 +475,31 @@ class KoteIRC(KoteCore):
         await self.irc_server_task.wait_closed()
         await super().stop()
 
+    def daemonize(self):
+        """Run application in daemon mode"""
+        try:
+            pid = os.fork()
+            if pid > 0:
+                sys.exit(0)
+        except OSError:
+            sys.exit(1)
+        os.setsid()
+        try:
+            pid = os.fork()
+            if pid > 0:
+                print("PID: ", pid)
+                sys.exit(0)
+        except OSError:
+            sys.exit(1)
+        os.chdir("/")
+        os.umask(0)
+        dev_null = open("/dev/null", "r+")
+        os.dup2(dev_null.fileno(), sys.stdout.fileno())
+        os.dup2(dev_null.fileno(), sys.stderr.fileno())
+        os.dup2(dev_null.fileno(), sys.stdin.fileno())
+        with open(os.path.join(self.datadir, "kote.pid"), "w") as f:
+            f.write("{}\n".format(os.getpid()))
+
     def run_app(self):
         """App runner"""
         if i2plib.utils.is_address_accessible(self.server_address):
@@ -490,8 +516,13 @@ def main():
             os.getenv("KOTE_IRC_ADDRESS", "127.0.0.1:17772"))
 
     app = KoteIRC(server_address, get_datadir(), i2plib.utils.get_sam_address())
+
     if os.getenv("KOTE_IRC_IGNORE_UNAUTHORIZED"):
         app.ignore_unauthorized = True
+
+    if os.getenv("KOTE_IRC_DAEMONIZE") and os.name == "posix":
+        app.daemonize()
+
     app.run_app()
 
 if __name__ == "__main__":
