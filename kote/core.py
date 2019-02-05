@@ -1,5 +1,4 @@
 import asyncio
-import logging
 import sys
 import os
 import pathlib
@@ -15,6 +14,7 @@ import i2plib.utils
 from kote.fs import load_contacts, save_contacts, load_destination
 from kote.protocol import MAX_MESSAGE_LENGTH, Message, ValidationError
 from kote.addressbook import Addressbook
+from kote.log import logger
 
 if sys.version_info.major == 3 and sys.version_info.minor < 7:
     all_tasks, current_task = asyncio.Task.all_tasks, asyncio.Task.current_task
@@ -28,7 +28,7 @@ async def cancel_pending_tasks(loop):
                 t.cancel()
                 await t
             except asyncio.CancelledError:
-                logging.warning("Cancellation error: "+str(t))
+                logger.warning("Cancellation error: "+str(t))
 
 SEND_RETRIES = 11
 DEFAULT_TIMEOUT = 60
@@ -94,7 +94,7 @@ class KoteCore:
         try:
             self.addressbook[name] = address
         except ValueError as e:
-            logging.error("Addressbook error: " + str(e))
+            logger.error("Addressbook error: " + str(e))
             return False
         else:
             await save_contacts(self.loop, dict(self.addressbook), self.datadir)
@@ -108,7 +108,7 @@ class KoteCore:
         try:
             addr = self.addressbook[name]
         except KeyError as e:
-            logging.error("Addressbook error: no such name " + str(e))
+            logger.error("Addressbook error: no such name " + str(e))
             return False
         else:
             await self.senders[addr].stop()
@@ -127,18 +127,18 @@ class KoteCore:
                                 destination=self.destination, 
                                 sam_address=self.sam_address, loop=self.loop)
                 except (i2plib.DuplicatedDest):
-                    logging.error("SAM destination already exists")
+                    logger.error("SAM destination already exists")
                 except ConnectionError:
-                    logging.error("SAM API is unavailable")
+                    logger.error("SAM API is unavailable")
                 else:
                     self.online.set()
-                    logging.debug("SAM session is created: " \
+                    logger.debug("SAM session is created: " \
                             + self.destination.base32)
                     await self.session_reader.read()
-                    logging.error("SAM session is dead")
+                    logger.error("SAM session is dead")
                     self.online.clear()
 
-                logging.info("Restarting SAM session in {} seconds...".format(
+                logger.info("Restarting SAM session in {} seconds...".format(
                     SESSION_RESTART_TIMEOUT))
                 await asyncio.sleep(SESSION_RESTART_TIMEOUT)
 
@@ -192,26 +192,26 @@ class KoteCore:
                             try:
                                 resp = Message.parse(data, msg.destination)
                             except ValidationError as e:
-                                logging.warning(
+                                logger.warning(
                                     "Invalid response from {}: {}".format(
                                                 msg.destination, e))
                             else:
                                 delivered = True
                                 await self._dest_online(msg.destination)
                                 if resp.code == Message.OK:
-                                    logging.debug(str(msg) + " delivered")
+                                    logger.debug(str(msg) + " delivered")
                                 elif resp.code == Message.UNAUTHORIZED:
-                                    logging.debug(str(msg) + " unauthorized")
+                                    logger.debug(str(msg) + " unauthorized")
                                     resp.name = self.addressbook.get_name(
                                             resp.destination)
                                     await self.on_unauthorized(resp)
                             break
                         else:
-                            logging.debug(str(id(msg)) + " retrying")
+                            logger.debug(str(id(msg)) + " retrying")
                             await asyncio.sleep(DEFAULT_TIMEOUT / 2)
 
                 if delivered:
-                    logging.debug(str(msg) + " delivered, retries: " + str(x))
+                    logger.debug(str(msg) + " delivered, retries: " + str(x))
                 else:
                     self.senders[msg.destination].stash(msg)
 
@@ -231,9 +231,9 @@ class KoteCore:
                     sam_address=self.sam_address)
         except (i2plib.CantReachPeer, i2plib.InvalidKey, i2plib.Timeout, \
                 i2plib.KeyNotFound, i2plib.PeerNotFound, i2plib.I2PError):
-            logging.debug("Can't connect to {}".format(request.destination))
+            logger.debug("Can't connect to {}".format(request.destination))
         except ConnectionError:
-            logging.warning("_send_message fails: can't connect to SAM")
+            logger.warning("_send_message fails: can't connect to SAM")
         else:
             writer.write(bytes(request))
             data = await reader.read(MAX_MESSAGE_LENGTH)
@@ -251,9 +251,9 @@ class KoteCore:
                             self.session_name,
                             sam_address=self.sam_address, loop=self.loop)
                 except i2plib.I2PError:
-                    logging.warning("Receiver fails: generic I2P error")
+                    logger.warning("Receiver fails: generic I2P error")
                 except ConnectionError:
-                    logging.warning("Receiver fails: can't connect to SAM")
+                    logger.warning("Receiver fails: can't connect to SAM")
                     await asyncio.sleep(SESSION_RESTART_TIMEOUT)
                 else:
                     dest = await reader.readline()
@@ -283,18 +283,18 @@ class KoteCore:
                 request = Message.parse(data, destination.base32)
                 request.name = name
             except ValidationError as e:
-                logging.warning("Invalid request: "+str(e))
+                logger.warning("Invalid request: "+str(e))
                 writer.close()
                 return
 
             if request.uuid.hex in self.uuid_log:
-                logging.debug("Duplicate message: "+ str(request))
+                logger.debug("Duplicate message: "+ str(request))
                 writer.write(bytes(Message(code=Message.OK)))
                 writer.close()
                 return
 
             self.uuid_log.append(request.uuid.hex)
-            logging.debug("Received message: " + str(request))
+            logger.debug("Received message: " + str(request))
 
 
             if request.code == Message.PING \
@@ -329,7 +329,7 @@ class KoteCore:
         name = self.addressbook.get_name(destination)
         if name:
             if not self.addressbook.is_online(destination):
-                logging.debug("Contact becomes online "+destination)
+                logger.debug("Contact becomes online "+destination)
                 await self.on_contact_online(name)
                 await self.senders[destination].send_stash()
             self.addressbook.set_online(destination)
@@ -341,7 +341,7 @@ class KoteCore:
 
         c = await load_contacts(self.loop, self.datadir)
         self.addressbook.update(c)
-        logging.debug("Contacts: " + str(self.addressbook))
+        logger.debug("Contacts: " + str(self.addressbook))
 
         for address in self.addressbook.values():
             self.senders[address] = MessageSender(self.loop, self.sender)
@@ -365,15 +365,15 @@ class KoteCore:
     def run_app(self):
         """Application runner"""
         if not i2plib.utils.is_address_accessible(self.sam_address):
-            logging.critical("SAM is unavailable")
+            logger.critical("SAM is unavailable")
             return
 
         if not os.path.exists(self.datadir):
             try:
                 pathlib.Path(self.datadir).mkdir(mode=0o700, parents=True)
-                logging.info("Created a new data directory: "+self.datadir)
+                logger.info("Created a new data directory: "+self.datadir)
             except PermissionError:
-                logging.critical("Can't create data directory: "+self.datadir)
+                logger.critical("Can't create data directory: "+self.datadir)
                 return
 
         self.loop.run_until_complete(self.start())
@@ -381,7 +381,7 @@ class KoteCore:
         try:
             self.loop.run_forever()
         except KeyboardInterrupt:
-            logging.info("Interrupted, shutting down...")
+            logger.info("Interrupted, shutting down...")
         finally:
             self.loop.run_until_complete(self.stop())
             self.loop.run_until_complete(cancel_pending_tasks(self.loop))

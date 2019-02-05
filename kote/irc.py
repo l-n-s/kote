@@ -26,6 +26,8 @@ valid_channelname_regexp = re.compile(
 HELP_TEXT = ["Available commands:", "add [nick:address]", "del [nick]", 
     "online", "list"]
 
+logger = logging.getLogger("kote.irc")
+
 def parse_read_buffer(data):
     """Parse data received from the IRC client"""
     commands = []
@@ -80,7 +82,7 @@ class Client:
         self.joined_channels = False
         self.sent_ping = False
         (self.host, self.port) = self.writer.get_extra_info("peername")
-        logging.debug("client created: "+self.host + " " + str(self.port))
+        logger.debug("client created: "+self.host + " " + str(self.port))
 
     @property
     def prefix(self):
@@ -119,7 +121,7 @@ class Client:
 
     async def disconnect(self):
         """Disconnect IRC client"""
-        logging.debug("disconnecting")
+        logger.debug("disconnecting")
 
         self.writer.close()
         if self.nickname and self.user:
@@ -389,7 +391,7 @@ class KoteIRC(KoteCore):
                 c.sent_ping = False
 
                 for command, arguments in parse_read_buffer(data):
-                    logging.debug(command + str(arguments))
+                    logger.debug(command + str(arguments))
                     if command == "QUIT":
                         await c.disconnect()
                         return
@@ -463,7 +465,7 @@ class KoteIRC(KoteCore):
         self.irc_server_task = await asyncio.start_server(
                 self.handle_irc_client, *self.server_address)
         self.ping_pong_task = self.create_task(self.ping_pong())
-        logging.info("IRC server listening at: "+str(self.server_address))
+        logger.info("IRC server listening at: "+str(self.server_address))
 
     async def stop(self):
         """Stop all tasks"""
@@ -503,7 +505,7 @@ class KoteIRC(KoteCore):
     def run_app(self):
         """App runner"""
         if i2plib.utils.is_address_accessible(self.server_address):
-            logging.critical("Server is already running")
+            logger.critical("Server is already running")
             return
 
         super().run_app()
