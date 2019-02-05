@@ -15,7 +15,7 @@ from kote.core import KoteCore, current_task
 
 SERVER_NAME = "kote"
 REPLY_PREFIX = ":{} ".format(SERVER_NAME).encode()
-DEFAULT_CHANNELS = ["#contacts", "#public"]
+DEFAULT_CHANNELS = ["&contacts", "&public"]
 
 linesep_regexp = re.compile(r"\r?\n")
 valid_nickname_regexp = re.compile(
@@ -90,7 +90,7 @@ class Client:
 
     def channel_members(self, chan):
         members = list(self.kote.clients) + list(self.kote.addressbook.keys())
-        if chan == "#contacts": members.append("ContactsBot")
+        if chan == "&contacts": members.append("ContactsBot")
         return members
 
     async def message(self, msg):
@@ -149,9 +149,9 @@ class Client:
 
             await irc_broadcast(self.kote.clients, 
                     ":{} JOIN {}".format(self.prefix, channelname))
-            if channelname == "#contacts": 
+            if channelname == "&contacts": 
                 topic = "Manage contacts here. Type HELP for assistance"
-            elif channelname == "#public":
+            elif channelname == "&public":
                 topic = "Broadcast messages to all of your peers"
             await self.reply("332 {} {} :{}".format(self.nickname, channelname,
                 topic))
@@ -244,9 +244,9 @@ class Client:
             if target in DEFAULT_CHANNELS:
                 await irc_privmsg(self.prefix, self.kote.clients, message, 
                         target=target, skip=self)
-                if target == "#public":
+                if target == "&public":
                     await self.public_message_handler(message)
-                elif target == "#contacts":
+                elif target == "&contacts":
                     await self.contacts_message_handler(message)
             elif target in self.kote.addressbook.keys():
                 await self.kote.send_message(Message(code=Message.PRIVATE, 
@@ -254,22 +254,22 @@ class Client:
                             content=message))
 
     async def public_message_handler(self, message):
-        """Handle #public message"""
+        """Handle &public message"""
         for d in self.kote.addressbook.humans():
             await self.kote.send_message(Message(
                     code=Message.PUBLIC, destination=d, content=message))
 
     async def contacts_message_handler(self, message):
-        """Handle #contacts message"""
+        """Handle &contacts message"""
         command = message.split()
         if command[0].lower() == "help":
             for m in HELP_TEXT:
                 await irc_privmsg("ContactsBot", self.kote.clients, m, 
-                        "#contacts")
+                        "&contacts")
             await irc_privmsg("ContactsBot", self.kote.clients, 
                     "Your address --> {}:{}".format(self.nickname,
                         self.kote.destination.base32), 
-                    "#contacts")
+                    "&contacts")
         elif command[0].lower() == "add" and len(command) == 2:
             try:
                 name, address = command[1].split(":")
@@ -285,13 +285,13 @@ class Client:
             for n in names:
                 if n:
                     await irc_privmsg(self.kote.contact_prefix(n), self.kote.clients, 
-                            "\x01ACTION online\x01", "#contacts")
+                            "\x01ACTION online\x01", "&contacts")
         elif command[0].lower() == "list":
             for a in self.kote.addressbook.values():
                 await irc_privmsg("ContactsBot", self.kote.clients, 
                         "{}:{} last seen: {}".format(
                             self.kote.addressbook.get_name(a), a,
-                            self.kote.addressbook.last_seen(a)), "#contacts")
+                            self.kote.addressbook.last_seen(a)), "&contacts")
 
 
     async def add_contact(self, name, address, your_name):
@@ -358,7 +358,7 @@ class Client:
                     "422 {} :MOTD File is missing"]:
                 await self.reply(m.format(self.nickname))
 
-            await self.send_names(["#public,#contacts"])
+            await self.send_names(["&public,&contacts"])
 
             for scrollback, action in self.kote.scrollbacks.values():
                 while scrollback:
@@ -428,16 +428,16 @@ class KoteIRC(KoteCore):
         elif valid_nickname_regexp.match(msg.content):
             if msg.name:
                 await irc_privmsg(self.contact_prefix(msg.name), self.clients, 
-                        "\x01ACTION authorization accepted\x01", "#contacts")
+                        "\x01ACTION authorization accepted\x01", "&contacts")
             else:
                 await irc_privmsg("ContactsBot", self.clients, 
                         "Authorization request --> {}:{}".format(msg.content, 
                             msg.destination),
-                        "#contacts")
+                        "&contacts")
 
     async def on_contact_online(self, name):
         await irc_privmsg(self.contact_prefix(name), self.clients, 
-                "\x01ACTION is online\x01", "#contacts")
+                "\x01ACTION is online\x01", "&contacts")
 
     async def on_private_message(self, msg):
         if not self.clients:
@@ -452,11 +452,11 @@ class KoteIRC(KoteCore):
         else:
             for line in msg.content.split("\n"):
                 await irc_privmsg(self.contact_prefix(msg.name), self.clients, line, 
-                        target="#public")
+                        target="&public")
 
     async def on_unauthorized(self, msg):
         await irc_privmsg(self.contact_prefix(msg.name), self.clients, 
-                "\x01ACTION Authorization required\x01", "#contacts")
+                "\x01ACTION Authorization required\x01", "&contacts")
 
     async def start(self):
         """Start all tasks"""
