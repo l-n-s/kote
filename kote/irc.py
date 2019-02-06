@@ -13,6 +13,9 @@ from kote.fs import get_datadir
 from kote.protocol import Message
 from kote.core import KoteCore, current_task
 
+from i2plib import __version__ as i2plib_version
+from kote import __version__ as kote_version
+
 SERVER_NAME = "kote"
 REPLY_PREFIX = ":{} ".format(SERVER_NAME).encode()
 DEFAULT_CHANNELS = ["&contacts", "&public"]
@@ -513,6 +516,9 @@ class KoteIRC(KoteCore):
 def main():
     logging.basicConfig(
             level=logging.DEBUG if os.getenv("KOTE_DEBUG") else logging.INFO)
+
+    logger.info("kote version: " + kote_version)
+    logger.info("i2plib version: " + i2plib_version)
 
     server_address = i2plib.utils.address_from_string(
             os.getenv("KOTE_IRC_ADDRESS", "127.0.0.1:17772"))
