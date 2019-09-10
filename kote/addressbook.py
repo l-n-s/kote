@@ -10,6 +10,7 @@ class Addressbook:
     def __init__(self):
         self._NAME_ADDRESS_MAP = {}
         self._ADDRESS_NAME_MAP = {}
+        self._LAST_SEEN = {}
         self._ONLINE_MAP = {}
 
     def __str__(self):
@@ -24,13 +25,15 @@ class Addressbook:
 
         self._NAME_ADDRESS_MAP[name] = address
         self._ADDRESS_NAME_MAP[address] = name
-        self._ONLINE_MAP[address] = None
+        self._LAST_SEEN[address] = None
+        self._ONLINE_MAP[address] = False
 
     def __getitem__(self, name):
         return self._NAME_ADDRESS_MAP[name]
 
     def __delitem__(self, name):
         del self._ONLINE_MAP[self._NAME_ADDRESS_MAP[name]]
+        del self._LAST_SEEN[self._NAME_ADDRESS_MAP[name]]
         del self._ADDRESS_NAME_MAP[self._NAME_ADDRESS_MAP[name]]
         del self._NAME_ADDRESS_MAP[name]
 
@@ -50,24 +53,35 @@ class Addressbook:
             return None
 
     def set_online(self, address):
+        if address in self._LAST_SEEN:
+            self._LAST_SEEN[address] = time.time()
         if address in self._ONLINE_MAP:
-            self._ONLINE_MAP[address] = time.time()
+            self._ONLINE_MAP[address] = True
+
+    def set_offline(self, address):
+        if address in self._ONLINE_MAP:
+            self._ONLINE_MAP[address] = False
 
     def last_seen(self, address):
-        if address in self._ONLINE_MAP and self._ONLINE_MAP[address]: 
-            ls = time.time() - self._ONLINE_MAP[address]
+        if address in self._LAST_SEEN and self._LAST_SEEN[address]: 
+            ls = time.time() - self._LAST_SEEN[address]
             return str(datetime.timedelta(seconds=ls)) + " ago"
         else:
             return "never"
 
     def is_online(self, address):
         """Check if a peer is online"""
-        return address in self._ONLINE_MAP and \
-            self._ONLINE_MAP[address] and \
-            (time.time() - self._ONLINE_MAP[address]) < MAX_IDLE
+        return address in self._ONLINE_MAP and self._ONLINE_MAP[address]
 
     def online_peers(self):
         return [a for a in self.values() if self.is_online(a)]
+
+    def get_expired_peers(self):
+        now, expired = time.time(), []
+        for d in self.online_peers():
+            if (now - self._LAST_SEEN[d]) > MAX_IDLE: expired.append(d)
+        return expired
+
 
     def humans(self):
         """Return only real contacts, not bots"""

@@ -150,6 +150,14 @@ class KoteCore:
             x = 0
             while True:
                 await self.online.wait()
+                # check expired peers
+                for d in self.addressbook.get_expired_peers():
+                    name = self.addressbook.get_name(d)
+                    if name:
+                        logger.debug("Peer %s goes offline", name)
+                        self.addressbook.set_offline(d)
+                        await self.on_contact_offline(name)
+
                 if (time.time() - self.started_at) < 1800.0 \
                       or not self.addressbook.online_peers():
                     peers = self.addressbook.values()
@@ -406,6 +414,10 @@ class KoteCore:
 
     async def on_contact_online(self, name):
         """Is triggered when any Message is received and peer was offline"""
+        pass
+
+    async def on_contact_offline(self, name):
+        """Is triggered when peer is marked as offline"""
         pass
 
     async def on_private_message(self, msg):

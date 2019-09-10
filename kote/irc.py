@@ -92,8 +92,13 @@ class Client:
         return "{}!{}@kote".format(self.nickname, self.user)
 
     def channel_members(self, chan):
-        members = list(self.kote.clients) + list(self.kote.addressbook.keys())
-        if chan == "&contacts": members.append("ContactsBot")
+        members = list(self.kote.clients)
+        if chan == "&contacts":
+            members.append("ContactsBot")
+            members.extend(list(self.kote.addressbook.keys()))
+        elif chan == "&public":
+            online_peers = [self.kote.addressbook.get_name(a) for a in self.kote.addressbook.online_peers()]
+            members.extend(online_peers)
         return members
 
     async def message(self, msg):
@@ -441,6 +446,16 @@ class KoteIRC(KoteCore):
     async def on_contact_online(self, name):
         await irc_privmsg(self.contact_prefix(name), self.clients, 
                 "\x01ACTION is online\x01", "&contacts")
+
+        await irc_broadcast(self.clients, 
+                ":{} JOIN {}".format(self.contact_prefix(name), "&public"))
+
+    async def on_contact_offline(self, name):
+        await irc_privmsg(self.contact_prefix(name), self.clients, 
+                "\x01ACTION is offline\x01", "&contacts")
+
+        await irc_broadcast(self.clients, 
+                ":{} PART {}".format(self.contact_prefix(name), "&public"))
 
     async def on_private_message(self, msg):
         if not self.clients:
